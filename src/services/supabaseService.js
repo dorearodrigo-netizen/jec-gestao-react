@@ -10,7 +10,7 @@ export async function fetchExecucoes() {
     const { data, error } = await supabase
       .from('execucoes')
       .select('*')
-      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
 
     if (error) {
       console.error('Erro Supabase:', error.message)
@@ -27,7 +27,7 @@ export async function createExecucao(exec) {
   try {
     const { data, error } = await supabase
       .from('execucoes')
-      .insert([{ ...exec, created_at: new Date().toISOString() }])
+      .insert([exec])
       .select()
 
     if (error) throw error
@@ -42,7 +42,7 @@ export async function updateExecucao(id, updates) {
   try {
     const { data, error } = await supabase
       .from('execucoes')
-      .update({ ...updates, updated_at: new Date().toISOString() })
+      .update(updates)
       .eq('id', id)
       .select()
 
@@ -74,7 +74,7 @@ export async function fetchAlvaras() {
     const { data, error } = await supabase
       .from('alvaras')
       .select('*')
-      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
 
     if (error) {
       console.error('Erro Supabase:', error.message)
@@ -91,7 +91,7 @@ export async function createAlvara(alv) {
   try {
     const { data, error } = await supabase
       .from('alvaras')
-      .insert([{ ...alv, created_at: new Date().toISOString() }])
+      .insert([alv])
       .select()
 
     if (error) throw error
@@ -106,7 +106,7 @@ export async function updateAlvara(id, updates) {
   try {
     const { data, error } = await supabase
       .from('alvaras')
-      .update({ ...updates, updated_at: new Date().toISOString() })
+      .update(updates)
       .eq('id', id)
       .select()
 

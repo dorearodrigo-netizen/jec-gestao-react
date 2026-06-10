@@ -1,5 +1,5 @@
 const SUPABASE_URL = 'https://uznnrxycugnogqcahqsa.supabase.co'
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6bm5yeHljdWdub2dxY2FocXNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NTY0NjksImV4cCI6MjA5NjIzMjQ2OX0.8IzFtjUJmBZ1TQN0xAi46O9GRt38QKS75WD7U7e5ZQw'
+const SUPABASE_KEY = 'sb_publishable_jl1DxlPnX96JMeZ2PG-w6Q_8ItKiSb7'
 
 const headers = {
   'Content-Type': 'application/json',

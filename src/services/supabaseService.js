@@ -1,20 +1,21 @@
-import { createClient } from '@supabase/supabase-js'
-
 const SUPABASE_URL = 'https://uznnrxycugnogqcahqsa.supabase.co'
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6bm5yeHljdWdub2dxY2FocXNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NTY0NjksImV4cCI6MjA5NjIzMjQ2OX0.8IzFtjUJmBZ1TQN0xAi46O9GRt38QKS75WD7U7e5ZQw'
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
+const headers = {
+  'Content-Type': 'application/json',
+  'apikey': SUPABASE_KEY,
+  'Authorization': `Bearer ${SUPABASE_KEY}`
+}
 
 // Execuções
 export async function fetchExecucoes() {
   try {
-    const { data, error } = await supabase
-      .from('execucoes')
-      .select('*')
-      .order('created_at', { ascending: false })
-
-    if (error) throw error
-    return data || []
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/execucoes?order=created_at.desc`,
+      { headers }
+    )
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    return await response.json()
   } catch (error) {
     console.error('Erro ao buscar execuções:', error)
     return []
@@ -23,13 +24,17 @@ export async function fetchExecucoes() {
 
 export async function createExecucao(exec) {
   try {
-    const { data, error } = await supabase
-      .from('execucoes')
-      .insert([{ ...exec, created_at: new Date() }])
-      .select()
-
-    if (error) throw error
-    return data?.[0]
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/execucoes`,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ ...exec, created_at: new Date().toISOString() })
+      }
+    )
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const data = await response.json()
+    return Array.isArray(data) ? data[0] : data
   } catch (error) {
     console.error('Erro ao criar execução:', error)
     throw error
@@ -38,14 +43,17 @@ export async function createExecucao(exec) {
 
 export async function updateExecucao(id, updates) {
   try {
-    const { data, error } = await supabase
-      .from('execucoes')
-      .update({ ...updates, updated_at: new Date() })
-      .eq('id', id)
-      .select()
-
-    if (error) throw error
-    return data?.[0]
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/execucoes?id=eq.${id}`,
+      {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ ...updates, updated_at: new Date().toISOString() })
+      }
+    )
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const data = await response.json()
+    return Array.isArray(data) ? data[0] : data
   } catch (error) {
     console.error('Erro ao atualizar execução:', error)
     throw error
@@ -54,12 +62,14 @@ export async function updateExecucao(id, updates) {
 
 export async function deleteExecucao(id) {
   try {
-    const { error } = await supabase
-      .from('execucoes')
-      .delete()
-      .eq('id', id)
-
-    if (error) throw error
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/execucoes?id=eq.${id}`,
+      {
+        method: 'DELETE',
+        headers
+      }
+    )
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
     return true
   } catch (error) {
     console.error('Erro ao deletar execução:', error)
@@ -70,13 +80,12 @@ export async function deleteExecucao(id) {
 // Alvarás
 export async function fetchAlvaras() {
   try {
-    const { data, error } = await supabase
-      .from('alvaras')
-      .select('*')
-      .order('created_at', { ascending: false })
-
-    if (error) throw error
-    return data || []
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/alvaras?order=created_at.desc`,
+      { headers }
+    )
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    return await response.json()
   } catch (error) {
     console.error('Erro ao buscar alvarás:', error)
     return []
@@ -85,13 +94,17 @@ export async function fetchAlvaras() {
 
 export async function createAlvara(alv) {
   try {
-    const { data, error } = await supabase
-      .from('alvaras')
-      .insert([{ ...alv, created_at: new Date() }])
-      .select()
-
-    if (error) throw error
-    return data?.[0]
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/alvaras`,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ ...alv, created_at: new Date().toISOString() })
+      }
+    )
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const data = await response.json()
+    return Array.isArray(data) ? data[0] : data
   } catch (error) {
     console.error('Erro ao criar alvará:', error)
     throw error
@@ -100,14 +113,17 @@ export async function createAlvara(alv) {
 
 export async function updateAlvara(id, updates) {
   try {
-    const { data, error } = await supabase
-      .from('alvaras')
-      .update({ ...updates, updated_at: new Date() })
-      .eq('id', id)
-      .select()
-
-    if (error) throw error
-    return data?.[0]
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/alvaras?id=eq.${id}`,
+      {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ ...updates, updated_at: new Date().toISOString() })
+      }
+    )
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const data = await response.json()
+    return Array.isArray(data) ? data[0] : data
   } catch (error) {
     console.error('Erro ao atualizar alvará:', error)
     throw error
@@ -116,12 +132,14 @@ export async function updateAlvara(id, updates) {
 
 export async function deleteAlvara(id) {
   try {
-    const { error } = await supabase
-      .from('alvaras')
-      .delete()
-      .eq('id', id)
-
-    if (error) throw error
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/alvaras?id=eq.${id}`,
+      {
+        method: 'DELETE',
+        headers
+      }
+    )
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
     return true
   } catch (error) {
     console.error('Erro ao deletar alvará:', error)

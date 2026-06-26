@@ -2,7 +2,7 @@ import { Upload, FileText, Trash2, Loader } from 'lucide-react'
 import { useState } from 'react'
 import { extractFromPDF, extractFromMultiplePDFs } from '../../services/pdfExtractService'
 
-export function PDFUpload({ pdfs, onChange, onDadosExtraidos }) {
+export function PDFUpload({ pdfs, onChange, onDadosExtraidos, onQualificacao }) {
   const [dragActive, setDragActive] = useState(false)
   const [extraindo, setExtraindo] = useState(false)
 
@@ -92,6 +92,24 @@ export function PDFUpload({ pdfs, onChange, onDadosExtraidos }) {
           } catch (error) {
             console.error('Erro ao extrair dados:', error)
             alert('Erro ao extrair dados do PDF: ' + error.message)
+          } finally {
+            setExtraindo(false)
+          }
+        }
+
+        // Se for a inicial, extrai (OCR) a qualificação das partes.
+        if (tipo === 'inicial' && onQualificacao) {
+          try {
+            setExtraindo(true)
+            const dados = await extractFromPDF(file)
+            if (dados.qualificacao_exequente || dados.qualificacao_executado) {
+              onQualificacao({
+                qualificacao_exequente: dados.qualificacao_exequente || '',
+                qualificacao_executado: dados.qualificacao_executado || ''
+              })
+            }
+          } catch (error) {
+            console.error('Erro ao extrair qualificação da inicial:', error)
           } finally {
             setExtraindo(false)
           }

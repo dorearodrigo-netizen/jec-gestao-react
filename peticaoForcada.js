@@ -123,6 +123,7 @@ export async function gerarPeticaoCumprimentoBuffer(execucao = {}, calculo = nul
     numero_processo, vara, exequente, executado,
     dm_valor, dmat_valor, dmat_descricao, dmat_correcao, dmat_inicio_corr,
     dm_correcao, dm_juros, dm_inicio_corr, dm_inicio_juros,
+    qualificacao_exequente, qualificacao_executado,
     ob_possui, ob_descricao, ob_prazo, ob_astreinte, ob_teto, ob_cumprida
   } = execucao
 
@@ -145,11 +146,19 @@ export async function gerarPeticaoCumprimentoBuffer(execucao = {}, calculo = nul
 
   const corpo = []
 
+  // Qualificações (extraídas da inicial); fallback para placeholder.
+  const qualAutor = qualificacao_exequente
+    ? `, ${qualificacao_exequente},`
+    : ', já qualificado(a) nos autos em epígrafe [inserir qualificação completa],'
+  const qualReu = qualificacao_executado
+    ? `, ${qualificacao_executado},`
+    : ', pessoa [física/jurídica] já qualificada nos autos [inserir CNPJ/CPF e endereço],'
+
   // Endereçamento
   corpo.push(new Paragraph({
     alignment: AlignmentType.JUSTIFIED,
     spacing: { after: 320 },
-    children: [new TextRun({ text: `AO JUÍZO DA ${vara || '[VARA]'}`, bold: true })]
+    children: [new TextRun({ text: `AO DOUTO JUÍZO DA ${vara || '[VARA]'}`, bold: true })]
   }))
   corpo.push(new Paragraph({
     alignment: AlignmentType.RIGHT,
@@ -160,18 +169,15 @@ export async function gerarPeticaoCumprimentoBuffer(execucao = {}, calculo = nul
   // Preâmbulo / qualificação
   corpo.push(par([
     new TextRun({ text: (exequente || '[EXEQUENTE]').toUpperCase(), bold: true }),
-    new TextRun(', já qualificado(a) nos autos em epígrafe [inserir qualificação completa: ' +
-      'nacionalidade, estado civil, profissão, CPF n.º ___, endereço ___], por seus advogados ' +
-      'que esta subscrevem, com instrumento de mandato já encartado aos autos, vem, ' +
-      'respeitosamente, à presença de Vossa Excelência, com fundamento nos arts. 513, 523 e ' +
-      'seguintes do Código de Processo Civil, promover o presente')
+    new TextRun(`${qualAutor} por seus advogados que esta subscrevem, com instrumento de ` +
+      'mandato já encartado aos autos, vem, respeitosamente, à presença de Vossa Excelência, ' +
+      'com fundamento nos arts. 513, 523 e seguintes do Código de Processo Civil, promover o presente')
   ]))
   corpo.push(titulo('CUMPRIMENTO DE SENTENÇA'))
   corpo.push(par([
     new TextRun('em face de '),
     new TextRun({ text: (executado || '[EXECUTADO]').toUpperCase(), bold: true }),
-    new TextRun(', pessoa [física/jurídica] já qualificada nos autos [inserir CNPJ/CPF e ' +
-      'endereço], pelas razões de fato e de direito a seguir expostas.')
+    new TextRun(`${qualReu} pelas razões de fato e de direito a seguir expostas.`)
   ]))
 
   // I – Da decisão exequenda
@@ -342,18 +348,23 @@ export async function gerarPeticaoCumprimentoBuffer(execucao = {}, calculo = nul
     alignment: AlignmentType.CENTER, spacing: { after: 360 },
     children: [new TextRun(`Salvador/BA, ${dataBR(new Date().toISOString())}.`)]
   }))
-  corpo.push(new Paragraph({
-    alignment: AlignmentType.CENTER, spacing: { after: 0 },
-    children: [new TextRun({ text: '____________________________________' })]
-  }))
-  corpo.push(new Paragraph({
-    alignment: AlignmentType.CENTER, spacing: { after: 0 },
-    children: [new TextRun({ text: 'RODRIGO DÓREA', bold: true })]
-  }))
-  corpo.push(new Paragraph({
-    alignment: AlignmentType.CENTER,
-    children: [new TextRun('Advogado — OAB/BA 88.688')]
-  }))
+  // Duas assinaturas (Henrique Leonel e Rodrigo Dórea).
+  const assinatura = (nome, oab) => [
+    new Paragraph({
+      alignment: AlignmentType.CENTER, spacing: { before: 360, after: 0 },
+      children: [new TextRun({ text: '____________________________________' })]
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER, spacing: { after: 0 },
+      children: [new TextRun({ text: nome, bold: true })]
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [new TextRun(`Advogado — ${oab}`)]
+    })
+  ]
+  corpo.push(...assinatura('HENRIQUE LEONEL DE SOUSA AZEREDO', 'OAB/BA 60.205'))
+  corpo.push(...assinatura('RODRIGO DÓREA', 'OAB/BA 88.688'))
 
   // Timbrado (cabeçalho em todas as páginas).
   const timbrado = new Header({

@@ -18,8 +18,9 @@ const COLUNAS = [
   'numero_processo', 'vara', 'relator', 'exequente', 'executado', 'patrono',
   'data_transito', 'status', 'dm_valor', 'dm_correcao', 'dm_juros',
   'dm_inicio_juros', 'dm_inicio_corr', 'dmat_valor', 'dmat_correcao',
-  'dmat_inicio_corr', 'dmat_descricao', 'ob_possui', 'ob_descricao', 'ob_prazo',
-  'ob_astreinte', 'ob_teto', 'ob_cumprida', 'juscalc_data', 'juscalc_valor', 'observacoes'
+  'dmat_inicio_corr', 'dmat_descricao', 'qualificacao_exequente', 'qualificacao_executado',
+  'ob_possui', 'ob_descricao', 'ob_prazo', 'ob_astreinte', 'ob_teto', 'ob_cumprida',
+  'juscalc_data', 'juscalc_valor', 'observacoes'
 ]
 const COLUNAS_NUMERICAS = ['dm_valor', 'dmat_valor', 'ob_prazo', 'ob_astreinte', 'ob_teto', 'juscalc_valor']
 const COLUNAS_DATA = ['data_transito', 'dm_inicio_juros', 'dm_inicio_corr', 'dmat_inicio_corr', 'juscalc_data']

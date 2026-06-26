@@ -13,6 +13,8 @@ export function ExecucaoForm({ inicial = null, onSave, onCancel }) {
     relator: '',
     exequente: '',
     executado: '',
+    qualificacao_exequente: '',
+    qualificacao_executado: '',
     patrono: '',
     data_transito: '',
     status: 'Aguardando protocolo',
@@ -66,6 +68,11 @@ export function ExecucaoForm({ inicial = null, onSave, onCancel }) {
 
   const handleDadosExtraidos = (dados) => {
     setDadosExtraidos(dados)
+  }
+
+  // Qualificação extraída da inicial (OCR) — preenche direto para revisão.
+  const handleQualificacao = (q) => {
+    setForm(prev => ({ ...prev, ...q }))
   }
 
   const handleConfirmarDadosExtraidos = (dadosConfirmados) => {
@@ -147,6 +154,26 @@ export function ExecucaoForm({ inicial = null, onSave, onCancel }) {
               onChange={handleChange}
               placeholder="Razão social – CNPJ 00.000.000/0000-00"
               className="input"
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="label">Qualificação do exequente (extraída da inicial — revise)</label>
+            <textarea
+              name="qualificacao_exequente"
+              value={form.qualificacao_exequente}
+              onChange={handleChange}
+              placeholder="brasileiro(a), estado civil, profissão, CPF n.º ..., residente e domiciliado em ..., CEP ..."
+              className="input min-h-16"
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="label">Qualificação do executado (extraída da inicial — revise)</label>
+            <textarea
+              name="qualificacao_executado"
+              value={form.qualificacao_executado}
+              onChange={handleChange}
+              placeholder="pessoa jurídica de direito privado, inscrita no CNPJ n.º ..., com sede em ..., CEP ..."
+              className="input min-h-16"
             />
           </div>
           <div className="col-span-2">
@@ -388,7 +415,7 @@ export function ExecucaoForm({ inicial = null, onSave, onCancel }) {
 
       {/* Seção de PDFs */}
       <div className="space-y-4">
-        <PDFUpload pdfs={pdfs} onChange={setPdfs} onDadosExtraidos={handleDadosExtraidos} />
+        <PDFUpload pdfs={pdfs} onChange={setPdfs} onDadosExtraidos={handleDadosExtraidos} onQualificacao={handleQualificacao} />
 
         {/* PDFExtractor para revisar dados extraídos */}
         {dadosExtraidos && (

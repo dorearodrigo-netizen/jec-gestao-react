@@ -158,6 +158,30 @@ function parseIndiceJuros(texto) {
   return 'Selic deduzido IPCA'
 }
 
+/**
+ * Extrai a qualificação descritiva (parte após o nome) do autor e do réu a
+ * partir do texto da petição inicial. Retorna o trecho que vai depois do nome,
+ * ex.: "brasileiro, ... CPF ..., residente ... CEP ...". A composição final
+ * ("{NOME}, {qualificação}") é feita na geração da petição.
+ */
+function parseQualificacoes(texto) {
+  const limpa = (s) => s.replace(/\s+/g, ' ').trim().replace(/[.,;]\s*$/, '')
+
+  // Autor: trecho iniciado pelo qualificador (brasileiro/a, ...) até o CEP.
+  const autor = texto.match(
+    /,\s*(brasileir[ao],[\s\S]{0,450}?CEP[\s:.ºn]*[\d.\-]+)/i
+  )
+  // Réu: após "em face de/do/da {NOME}," — captura "pessoa física/jurídica ... CEP".
+  const reu = texto.match(
+    /em face d[eoa]s?\s+[A-ZÀ-Ü][^,\n]+,\s*(pessoa\s+(?:jur[íi]dica|f[íi]sica)[\s\S]{0,550}?CEP[\s:.ºn]*[\d.\-]+)/i
+  )
+
+  return {
+    qualificacao_exequente: autor ? limpa(autor[1]) : '',
+    qualificacao_executado: reu ? limpa(reu[1]) : ''
+  }
+}
+
 function detectarTipoDocumento(texto) {
   // 1) Acórdão (2º grau).
   if (/RECURSO\s+INOMINADO|TURMA\s+RECURSAL|AC[ÓO]RD[ÃA]O/i.test(texto)) return 'acordao'
@@ -182,6 +206,7 @@ function detectarTipoDocumento(texto) {
 export function parsePeticaoData(texto) {
   const partes = parseParties(texto)
   const tipo = detectarTipoDocumento(texto)
+  const quali = parseQualificacoes(texto)
 
   // Valor de condenação só faz sentido em sentença/acórdão. Numa inicial os
   // valores são PEDIDOS (ainda não concedidos), então não os preenchemos.
@@ -198,6 +223,8 @@ export function parsePeticaoData(texto) {
     dm_valor: ehDecisao ? parseDanoMoral(texto) : '',
     dm_correcao: parseIndiceCorrecao(texto),
     dm_juros: parseIndiceJuros(texto),
+    qualificacao_exequente: quali.qualificacao_exequente,
+    qualificacao_executado: quali.qualificacao_executado,
     tipo_documento: tipo
   }
 }

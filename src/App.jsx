@@ -1,9 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Sidebar, Topbar, Modal } from './components/layout'
 import { ExecucaoForm, ExecutacoesList } from './components/execucoes'
+import { AlvarasList } from './components/alvaras'
+import { Dashboard } from './components/dashboard'
+import { Prazos } from './components/prazos'
 import { Metric } from './components/common'
 import { useExecucoes, useAlvaras, useNotification } from './hooks'
-import { calcularExecucao, gerarPDFPeticao, exportarJSON, formatarMoeda } from './services'
+import { calcularExecucao, gerarPeticaoDOCX, gerarPeticaoForcadaDOCX, exportarJSON, formatarMoeda } from './services'
 import { FileText, Award, TrendingUp, Calendar } from 'lucide-react'
 
 function App() {
@@ -20,17 +23,24 @@ function App() {
     try {
       setLoading(true)
 
-      // Calcular valores se houver arbitramento e citação
+      // O cálculo é um "extra": só roda se houver as datas-base necessárias
+      // (correção e juros). Sem elas, salvamos sem cálculo para não gravar
+      // um total incorreto — o usuário calcula depois informando as datas.
       let calc = null
-      if (data.arb && data.cit) {
-        calc = await calcularExecucao(data, new Date())
+      if (data.dm_valor && data.dm_inicio_corr && data.dm_inicio_juros) {
+        try {
+          calc = await calcularExecucao(data, new Date())
+        } catch (calcErr) {
+          console.warn('Cálculo não realizado no salvamento:', calcErr.message)
+          notify('Execução salva, mas o cálculo falhou — refaça em "Calcular".', 'error')
+        }
       }
 
       if (editingId) {
-        updateExec(editingId, { ...data, calc })
+        await updateExec(editingId, { ...data, calc })
         notify('Execução atualizada com sucesso')
       } else {
-        addExec({ ...data, calc })
+        await addExec({ ...data, calc })
         notify('Execução cadastrada com sucesso')
       }
 
@@ -64,16 +74,55 @@ function App() {
         return
       }
 
-      let calc = exec.calc
-      if (!calc && exec.arb && exec.cit) {
-        calc = await calcularExecucao(exec, new Date())
+      // Recalcula com índices oficiais quando houver as datas-base; senão,
+      // usa o último cálculo salvo (juscalc_valor) como total.
+      let calc = null
+      if (exec.dm_valor) {
+        try {
+          calc = await calcularExecucao(exec, new Date())
+        } catch (e) {
+          console.warn('Cálculo não refeito para a voluntária:', e.message)
+        }
+      }
+      if (!calc && Number(exec.juscalc_valor) > 0) {
+        calc = { total: Number(exec.juscalc_valor), dataBase: exec.juscalc_data || new Date().toISOString().slice(0, 10) }
       }
 
-      gerarPDFPeticao(exec, calc, 'cumprimento')
-      notify('PDF gerado com sucesso')
+      await gerarPeticaoDOCX(exec, calc, 'cumprimento')
+      notify('Petição de cumprimento gerada (com planilha)')
     } catch (error) {
       console.error(error)
       notify('Erro ao gerar PDF: ' + error.message, 'error')
+    }
+  }
+
+  const handleGerarForcado = async (id) => {
+    try {
+      const exec = getExecById(id)
+      if (!exec) {
+        notify('Execução não encontrada', 'error')
+        return
+      }
+
+      // Recalcula com valores atualizados quando houver as datas-base; senão,
+      // usa o último cálculo salvo (juscalc_valor) como total.
+      let calc = null
+      if (exec.dm_valor) {
+        try {
+          calc = await calcularExecucao(exec, new Date())
+        } catch (e) {
+          console.warn('Cálculo não refeito para a forçada:', e.message)
+        }
+      }
+      if (!calc && Number(exec.juscalc_valor) > 0) {
+        calc = { total: Number(exec.juscalc_valor), dataBase: exec.juscalc_data || new Date().toISOString().slice(0, 10) }
+      }
+
+      await gerarPeticaoForcadaDOCX(exec, calc)
+      notify('Petição de cumprimento forçado gerada (rascunho para revisão)')
+    } catch (error) {
+      console.error(error)
+      notify('Erro ao gerar petição forçada: ' + error.message, 'error')
     }
   }
 
@@ -131,7 +180,7 @@ function App() {
     },
     {
       label: 'Pago espontaneamente',
-      value: execucoes.filter(e => e.st === 'Pago espontaneamente').length,
+      value: execucoes.filter(e => e.status === 'Pago espontaneamente').length,
       icon: Calendar,
       color: 'amber'
     }
@@ -174,32 +223,36 @@ function App() {
                 onEdit={handleEditExec}
                 onDelete={handleDeleteExec}
                 onGeneratePDF={handleGeneratePDF}
+                onGerarForcado={handleGerarForcado}
               />
             </div>
           )}
 
           {activeTab === 'alvaras' && (
-            <div className="text-center py-20">
-              <Award size={56} className="mx-auto mb-4 text-text3 opacity-30" />
-              <p className="text-lg text-text2 mb-2">Alvarás — em desenvolvimento</p>
-              <p className="text-sm text-text3">Este módulo será implementado em breve</p>
+            <div>
+              {/* Métricas */}
+              <div className="grid grid-cols-4 gap-4 mb-8">
+                {metrics.map((m, i) => (
+                  <Metric key={i} {...m} />
+                ))}
+              </div>
+
+              {/* Lista de Alvarás */}
+              <AlvarasList
+                alvaras={alvaras}
+                execucoes={execucoes}
+                onEdit={() => {}}
+                onDelete={() => {}}
+              />
             </div>
           )}
 
           {activeTab === 'dashboard' && (
-            <div className="text-center py-20">
-              <TrendingUp size={56} className="mx-auto mb-4 text-text3 opacity-30" />
-              <p className="text-lg text-text2 mb-2">Dashboard — em desenvolvimento</p>
-              <p className="text-sm text-text3">Gráficos e análises em breve</p>
-            </div>
+            <Dashboard execucoes={execucoes} alvaras={alvaras} />
           )}
 
           {activeTab === 'prazos' && (
-            <div className="text-center py-20">
-              <Calendar size={56} className="mx-auto mb-4 text-text3 opacity-30" />
-              <p className="text-lg text-text2 mb-2">Prazos — em desenvolvimento</p>
-              <p className="text-sm text-text3">Controle de prazos processuais em breve</p>
-            </div>
+            <Prazos execucoes={execucoes} />
           )}
         </div>
       </div>

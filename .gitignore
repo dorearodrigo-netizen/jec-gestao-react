@@ -3,6 +3,12 @@ node_modules
 dist
 build
 
+# Petições geradas em runtime (artefatos temporários)
+downloads/
+
+# Dados de idioma do Tesseract (baixados em runtime)
+*.traineddata
+
 # Logs
 *.log
 npm-debug.log*

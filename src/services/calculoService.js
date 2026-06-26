@@ -1,62 +1,98 @@
-import { fetchIPCA, fetchSelic } from './bacenService'
+import { fetchCorrecao, fetchIPCA, fetchSelic } from './bacenService'
 
+/**
+ * Atualiza o crédito da execução. Dano moral E dano material recebem, cada um,
+ * correção monetária (índice e termo inicial próprios) e juros de mora.
+ *  - Dano moral: correção desde o arbitramento (dm_inicio_corr, Súmula 362);
+ *    juros desde a citação (dm_inicio_juros).
+ *  - Dano material: correção desde o desembolso (dmat_inicio_corr); juros desde
+ *    a citação (mesma data dos juros do dano moral).
+ */
 export async function calcularExecucao(execucao, dataBase) {
-  const dtArb = execucao.arb
-  const dtCit = execucao.cit
+  const dtCorrecaoDM = execucao.dm_inicio_corr || execucao.arb || execucao.data_transito
+  const dtJuros = execucao.dm_inicio_juros || execucao.cit || execucao.data_transito
   const dtBaseStr = typeof dataBase === 'string' ? dataBase : dataBase.toISOString().split('T')[0]
 
-  if (!dtArb) throw new Error('Data do arbitramento não informada')
-  if (!dtCit) throw new Error('Data da citação não informada')
+  if (!dtCorrecaoDM) throw new Error('Data de início da correção (dano moral) não informada')
+  if (!dtJuros) throw new Error('Data de início dos juros não informada')
+
+  const principal = Number(execucao.dm_valor || execucao.dm) || 0
+  const dmat = Number(execucao.dmat_valor || execucao.dmat) || 0
+  const ast = Number(execucao.ob_astreinte || execucao.ast) || 0
+  const indiceCorrecao = execucao.dm_correcao || 'IPCA'
+  const indiceJuros = execucao.dm_juros || 'SELIC-IPCA'
+
+  // Dano material: correção desde o desembolso; na falta, usa a data dos juros (citação).
+  const dtCorrecaoDMat = execucao.dmat_inicio_corr || dtJuros
+
+  const usaSelic = /selic/i.test(indiceJuros)
+  const menorData = [dtCorrecaoDM, dtJuros, dtCorrecaoDMat].sort()[0]
 
   try {
-    const [ipca, selic] = await Promise.all([
-      fetchIPCA(dtArb, dtBaseStr),
-      fetchSelic(dtCit, dtBaseStr)
+    const [corr, selic, ipca] = await Promise.all([
+      fetchCorrecao(indiceCorrecao, menorData, dtBaseStr),
+      usaSelic ? fetchSelic(menorData, dtBaseStr) : Promise.resolve({ dados: [], fonte: 'BCB' }),
+      usaSelic ? fetchIPCA(menorData, dtBaseStr) : Promise.resolve({ dados: [], fonte: 'BCB' })
     ])
 
-    if (!ipca.length) throw new Error('Sem dados IPCA para o período')
-    if (!selic.length) throw new Error('Sem dados Selic para o período')
+    const corrSerie = corr.dados
+    if (!corrSerie.length) throw new Error('Sem dados do índice de correção para o período')
 
-    const fatorCM = calcFator(ipca, dtArb, dtBaseStr, 'linear')
-    const fatorSelic = calcFator(selic, dtCit, dtBaseStr, 'composto')
-    const fatorIPCA4Juros = calcFator(ipca, dtCit, dtBaseStr, 'linear')
+    // Origem 'BCB' só se TODAS as séries efetivamente usadas vieram do BCB.
+    const fonteIndices =
+      corr.fonte === 'BCB' && (!usaSelic || (selic.fonte === 'BCB' && ipca.fonte === 'BCB'))
+        ? 'BCB' : 'mock'
 
-    let fatorJuros
-    if (execucao.jurIdx === 'SELIC-IPCA') {
-      fatorJuros = fatorSelic / fatorIPCA4Juros
-    } else if (execucao.jurIdx === 'SELIC') {
-      fatorJuros = fatorSelic
-    } else {
-      const ms = monthsDiff(dtCit, dtBaseStr)
-      fatorJuros = 1 + 0.01 * ms
+    const fatorCorrecao = (dtIni) => calcFator(corrSerie, dtIni, dtBaseStr, 'linear')
+    const fatorJurosDe = (dtIni) => {
+      if (indiceJuros === 'SELIC-IPCA' || indiceJuros === 'Selic deduzido IPCA') {
+        return calcFator(selic.dados, dtIni, dtBaseStr, 'composto') /
+               calcFator(ipca.dados, dtIni, dtBaseStr, 'linear')
+      }
+      if (indiceJuros === 'SELIC') {
+        return calcFator(selic.dados, dtIni, dtBaseStr, 'composto')
+      }
+      return 1 + 0.01 * monthsDiff(dtIni, dtBaseStr) // 1% a.m. (juros simples)
     }
 
-    const principal = Number(execucao.dm) || 0
-    const dmat = Number(execucao.dmat) || 0
-    const ast = Number(execucao.ast) || 0
-
+    // Dano moral
+    const fatorCM = fatorCorrecao(dtCorrecaoDM)
+    const fatorJuros = fatorJurosDe(dtJuros)
     const cm = principal * (fatorCM - 1)
     const principalCorr = principal + cm
     const juros = principalCorr * (fatorJuros - 1)
-    const total = principalCorr + juros + dmat + ast
+
+    // Dano material (correção + juros próprios)
+    const fatorCMDmat = dmat > 0 ? fatorCorrecao(dtCorrecaoDMat) : 1
+    const fatorJurosDmat = dmat > 0 ? fatorJurosDe(dtJuros) : 1 // juros desde a citação
+    const cmDmat = dmat * (fatorCMDmat - 1)
+    const dmatCorr = dmat + cmDmat
+    const jurosDmat = dmatCorr * (fatorJurosDmat - 1)
+
+    const r2 = (v) => Math.round(v * 100) / 100
+    const total = r2(principalCorr + juros + dmatCorr + jurosDmat + ast)
 
     return {
       dataBase: dtBaseStr,
+      fonteIndices,
+      indiceCorrecao,
+      indiceJuros,
       principal,
-      cm: Math.round(cm * 100) / 100,
-      principalCorr: Math.round(principalCorr * 100) / 100,
-      juros: Math.round(juros * 100) / 100,
+      cm: r2(cm),
+      principalCorr: r2(principalCorr),
+      juros: r2(juros),
       dmat,
+      cmDmat: r2(cmDmat),
+      dmatCorr: r2(dmatCorr),
+      jurosDmat: r2(jurosDmat),
       ast,
-      total: Math.round(total * 100) / 100,
+      total,
       fatorCM: fatorCM.toFixed(6),
-      fatorSelic: fatorSelic.toFixed(6),
-      fatorIPCA4Juros: fatorIPCA4Juros.toFixed(6),
+      fatorCMDmat: fatorCMDmat.toFixed(6),
       fatorJuros: fatorJuros.toFixed(6),
-      ultimaSelic: selic[selic.length - 1],
-      ultimoIPCA: ipca[ipca.length - 1],
-      ipcaSerie: ipca,
-      selicSerie: selic
+      dtCorrecaoDM,
+      dtCorrecaoDMat,
+      dtJuros
     }
   } catch (error) {
     console.error('Erro ao calcular execução:', error)

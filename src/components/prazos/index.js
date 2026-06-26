@@ -1,0 +1,1 @@
+export { Prazos } from './Prazos'

@@ -1,3 +1,5 @@
-export { fetchBCB, fetchIPCA, fetchSelic } from './bacenService'
+export { fetchIPCA, fetchSelic } from './bacenService'
 export { calcularExecucao, formatarMoeda, formatarData, parseBRL } from './calculoService'
-export { gerarPDFPeticao, exportarJSON } from './pdfService'
+export { gerarPDFPeticao, gerarPeticaoDOCX, gerarPeticaoForcadaDOCX, exportarJSON } from './pdfService'
+export { extractFromPDF, extractFromMultiplePDFs } from './pdfExtractService'
+export { calcularPrazo, diasUteisRestantes, prazoVencido, formatarData as formatarDataPrazo, statusExecucao, infoPrazo } from './prazoService'

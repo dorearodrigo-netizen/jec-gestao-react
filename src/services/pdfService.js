@@ -3,6 +3,64 @@ import { formatarMoeda, formatarData } from './calculoService'
 
 const TIMBRADO_HEADER = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
 const TIMBRADO_FOOTER = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+import { API_URL as SERVER_URL } from '../config'
+
+/**
+ * Gera petição DOCX usando o modelo no servidor
+ */
+export async function gerarPeticaoDOCX(execucao, calculo, tipo = 'cumprimento') {
+  try {
+    const response = await fetch(`${SERVER_URL}/gerar-peticao`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        execucao,
+        calculo,
+        tipo
+      })
+    })
+
+    if (!response.ok) {
+      const erro = await response.json()
+      throw new Error(erro.mensagem || 'Erro ao gerar petição')
+    }
+
+    const resultado = await response.json()
+
+    if (resultado.sucesso) {
+      // Fazer download automático
+      window.location.href = `${SERVER_URL}${resultado.url}`
+      return resultado
+    } else {
+      throw new Error(resultado.erro)
+    }
+  } catch (error) {
+    console.error('Erro ao gerar petição:', error)
+    throw error
+  }
+}
+
+/**
+ * Gera a Petição de Cumprimento de Sentença (forçada) — rascunho estruturado
+ * em DOCX, montado no servidor a partir dos dados da execução e do cálculo.
+ */
+export async function gerarPeticaoForcadaDOCX(execucao, calculo) {
+  const response = await fetch(`${SERVER_URL}/gerar-peticao-forcada`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ execucao, calculo })
+  })
+
+  const resultado = await response.json()
+  if (!response.ok || !resultado.sucesso) {
+    throw new Error(resultado.mensagem || resultado.erro || 'Erro ao gerar petição forçada')
+  }
+
+  window.location.href = `${SERVER_URL}${resultado.url}` // download automático
+  return resultado
+}
 
 export function gerarPDFPeticao(execucao, calculo, tipo = 'cumprimento') {
   const doc = new jsPDF({
@@ -51,7 +109,7 @@ export function gerarPDFPeticao(execucao, calculo, tipo = 'cumprimento') {
   y = 24
 
   // Endereçamento
-  const vara = (execucao.v || '').replace(/(,?\s*[-–—]?\s*(turma recursal|câmara recursal|tjba).*)/i, '').trim() || 'VARA DO JEC COMPETENTE — SALVADOR/BA'
+  const vara = (execucao.vara || '').replace(/(,?\s*[-–—]?\s*(turma recursal|câmara recursal|tjba).*)/i, '').trim() || 'VARA DO JEC COMPETENTE — SALVADOR/BA'
   font(10, true)
   txt('EXCELENTÍSSIMA SENHORA JUÍZA', ML, y)
   newLine(5)
@@ -60,11 +118,11 @@ export function gerarPDFPeticao(execucao, calculo, tipo = 'cumprimento') {
 
   // Dados do processo
   font(9, false)
-  txt(`Processo: ${execucao.p}`, ML, y)
+  txt(`Processo: ${execucao.numero_processo}`, ML, y)
   newLine(4)
-  txt(`Exequente: ${execucao.e}`, ML, y)
+  txt(`Exequente: ${execucao.exequente}`, ML, y)
   newLine(4)
-  txt(`Executado(a): ${execucao.x}`, ML, y)
+  txt(`Executado(a): ${execucao.executado}`, ML, y)
   newLine(8)
 
   // Título
@@ -74,7 +132,7 @@ export function gerarPDFPeticao(execucao, calculo, tipo = 'cumprimento') {
 
   // Fundação
   font(9, false)
-  block(`Apresenta a parte exequente, por meio de seu procurador infra-assinado, contra o(a) executado(a) ${execucao.x}, esta petição de ${tipo === 'cumprimento' ? 'cumprimento' : 'execução forçada'} de sentença, com fundamento no art. 523 e seguintes do Código de Processo Civil, pelos fatos e fundamentos que passo a expor:`, ML, LW, 5)
+  block(`Apresenta a parte exequente, por meio de seu procurador infra-assinado, contra o(a) executado(a) ${execucao.executado}, esta petição de ${tipo === 'cumprimento' ? 'cumprimento' : 'execução forçada'} de sentença, com fundamento no art. 523 e seguintes do Código de Processo Civil, pelos fatos e fundamentos que passo a expor:`, ML, LW, 5)
   newLine(3)
 
   // Seções
@@ -82,7 +140,7 @@ export function gerarPDFPeticao(execucao, calculo, tipo = 'cumprimento') {
   txt('I — DO DIREITO', ML, y)
   newLine(6)
   font(9, false)
-  block(`Restou reconhecido em sentença que a parte executada tem a obrigação de pagar a quantia devida a título de danos morais. O direito exigível é líquido e certo, sendo devida a correção monetária pelo índice ${execucao.corrIdx || 'IPCA'}, e juros pelo critério ${execucao.jurIdx || 'SELIC-IPCA'}.`, ML, LW, 5)
+  block(`Restou reconhecido em sentença que a parte executada tem a obrigação de pagar a quantia devida a título de danos morais. O direito exigível é líquido e certo, sendo devida a correção monetária pelo índice ${execucao.dm_correcao || 'IPCA'}, e juros pelo critério ${execucao.dm_juros || 'SELIC-IPCA'}.`, ML, LW, 5)
   newLine(3)
 
   // Valores
@@ -97,8 +155,8 @@ export function gerarPDFPeticao(execucao, calculo, tipo = 'cumprimento') {
   if (calculo) {
     const rows = [
       ['Principal (dano moral)', formatarMoeda(calculo.principal)],
-      ['(+) Correção monetária ' + (execucao.corrIdx || 'IPCA'), '+' + formatarMoeda(calculo.cm)],
-      ['(+) Juros ' + (execucao.jurIdx || 'SELIC-IPCA'), '+' + formatarMoeda(calculo.juros)],
+      ['(+) Correção monetária ' + (execucao.dm_correcao || 'IPCA'), '+' + formatarMoeda(calculo.cm)],
+      ['(+) Juros ' + (execucao.dm_juros || 'SELIC-IPCA'), '+' + formatarMoeda(calculo.juros)],
       ['TOTAL EXEQUENDO', formatarMoeda(calculo.total)]
     ]
 
@@ -147,7 +205,7 @@ export function gerarPDFPeticao(execucao, calculo, tipo = 'cumprimento') {
   txt('OAB/BA 60.205', ML + 102, y)
 
   // Download
-  const filename = `PetAo_${execucao.p.replace(/\D/g, '')}_${new Date().getTime()}.pdf`
+  const filename = `PetAo_${(execucao.numero_processo || '').replace(/\D/g, '')}_${new Date().getTime()}.pdf`
   doc.save(filename)
 
   return filename

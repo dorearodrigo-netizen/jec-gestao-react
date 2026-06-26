@@ -13,7 +13,7 @@ const STATUS_COLORS = {
   'Encerrado': 'bg-gray-100 text-gray-600'
 }
 
-export function ExecutacoesList({ execucoes, onEdit, onDelete, onGeneratePDF }) {
+export function ExecutacoesList({ execucoes, onEdit, onDelete, onGeneratePDF, onGerarForcado }) {
   const [expandedId, setExpandedId] = useState(null)
 
   if (execucoes.length === 0) {
@@ -39,15 +39,15 @@ export function ExecutacoesList({ execucoes, onEdit, onDelete, onGeneratePDF }) 
               className="flex-1 min-w-0"
               onClick={() => setExpandedId(expandedId === exec.id ? null : exec.id)}
             >
-              <p className="font-mono text-xs text-text3 mb-2">{exec.p}</p>
+              <p className="font-mono text-xs text-text3 mb-2">{exec.numero_processo}</p>
               <h3 className="font-semibold text-base text-navy line-clamp-1">
-                {exec.e} vs {exec.x}
+                {exec.exequente} vs {exec.executado}
               </h3>
-              <p className="text-xs text-text3 mt-1">{exec.v}</p>
+              <p className="text-xs text-text3 mt-1">{exec.vara}</p>
             </div>
             <div className="flex-shrink-0">
-              <span className={`badge px-3 py-1.5 text-xs font-semibold ${STATUS_COLORS[exec.st] || 'bg-bg2 text-text2'}`}>
-                {exec.st}
+              <span className={`badge px-3 py-1.5 text-xs font-semibold ${STATUS_COLORS[exec.status] || 'bg-bg2 text-text2'}`}>
+                {exec.status}
               </span>
             </div>
           </div>
@@ -56,19 +56,19 @@ export function ExecutacoesList({ execucoes, onEdit, onDelete, onGeneratePDF }) 
           <div className="border-t border-border flex flex-wrap">
             <div className="flex-1 min-w-fit p-4 border-r border-border">
               <p className="text-xs text-text3 uppercase tracking-wider mb-1">Valor condenado</p>
-              <p className="font-semibold text-base text-navy">{formatarMoeda(exec.dm || 0)}</p>
+              <p className="font-semibold text-base text-navy">{formatarMoeda(exec.dm_valor || 0)}</p>
             </div>
             <div className="flex-1 min-w-fit p-4 border-r border-border">
-              <p className="text-xs text-text3 uppercase tracking-wider mb-1">Arbitramento</p>
-              <p className="font-semibold text-base text-navy">{formatarData(exec.arb)}</p>
+              <p className="text-xs text-text3 uppercase tracking-wider mb-1">Data de Trânsito</p>
+              <p className="font-semibold text-base text-navy">{formatarData(exec.data_transito)}</p>
             </div>
             <div className="flex-1 min-w-fit p-4 border-r border-border">
-              <p className="text-xs text-text3 uppercase tracking-wider mb-1">Citação</p>
-              <p className="font-semibold text-base text-navy">{formatarData(exec.cit)}</p>
+              <p className="text-xs text-text3 uppercase tracking-wider mb-1">Correção</p>
+              <p className="font-semibold text-base text-navy">{exec.dm_correcao}</p>
             </div>
             <div className="flex-1 min-w-fit p-4">
-              <p className="text-xs text-text3 uppercase tracking-wider mb-1">Índices</p>
-              <p className="text-sm text-text2">{exec.corrIdx} / {exec.jurIdx}</p>
+              <p className="text-xs text-text3 uppercase tracking-wider mb-1">Juros</p>
+              <p className="text-sm text-text2">{exec.dm_juros}</p>
             </div>
           </div>
 
@@ -76,36 +76,34 @@ export function ExecutacoesList({ execucoes, onEdit, onDelete, onGeneratePDF }) 
           {expandedId === exec.id && (
             <div className="border-t border-border p-6 bg-bg/50 space-y-4">
               <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <p className="text-xs text-text3 uppercase tracking-wider mb-2">Exequente</p>
-                  <p className="text-sm text-text">{exec.e}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-text3 uppercase tracking-wider mb-2">Executado</p>
-                  <p className="text-sm text-text">{exec.x}</p>
-                </div>
-                {exec.dmat > 0 && (
+                {exec.patrono && (
+                  <div>
+                    <p className="text-xs text-text3 uppercase tracking-wider mb-2">Patrono</p>
+                    <p className="text-sm text-text">{exec.patrono}</p>
+                  </div>
+                )}
+                {exec.relator && (
+                  <div>
+                    <p className="text-xs text-text3 uppercase tracking-wider mb-2">Relator</p>
+                    <p className="text-sm text-text">{exec.relator}</p>
+                  </div>
+                )}
+                {exec.dmat_valor > 0 && (
                   <div>
                     <p className="text-xs text-text3 uppercase tracking-wider mb-2">Danos Materiais</p>
-                    <p className="text-sm text-text">{formatarMoeda(exec.dmat)} - {exec.dmatd}</p>
+                    <p className="text-sm text-text">{formatarMoeda(exec.dmat_valor)} - {exec.dmat_descricao}</p>
                   </div>
                 )}
-                {exec.ob === 'S' && (
+                {exec.ob_possui && (
                   <div>
                     <p className="text-xs text-text3 uppercase tracking-wider mb-2">Obrigação de Fazer</p>
-                    <p className="text-sm text-text">{exec.od} ({exec.pr})</p>
+                    <p className="text-sm text-text">{exec.ob_descricao} ({exec.ob_prazo} dias)</p>
                   </div>
                 )}
-                {exec.pgval > 0 && (
-                  <div>
-                    <p className="text-xs text-text3 uppercase tracking-wider mb-2">Pagamento Recebido</p>
-                    <p className="text-sm text-teal font-semibold">{formatarMoeda(exec.pgval)} em {formatarData(exec.pgdt)}</p>
-                  </div>
-                )}
-                {exec.obs && (
+                {(exec.ob_astreinte > 0 || exec.ob_teto > 0) && (
                   <div className="col-span-2">
-                    <p className="text-xs text-text3 uppercase tracking-wider mb-2">Observações</p>
-                    <p className="text-sm text-text2">{exec.obs}</p>
+                    <p className="text-xs text-text3 uppercase tracking-wider mb-2">Astreinte/Teto</p>
+                    <p className="text-sm text-text">{formatarMoeda(exec.ob_astreinte)} por dia (teto: {formatarMoeda(exec.ob_teto)})</p>
                   </div>
                 )}
               </div>
@@ -117,11 +115,21 @@ export function ExecutacoesList({ execucoes, onEdit, onDelete, onGeneratePDF }) 
             <button
               onClick={() => onGeneratePDF(exec.id)}
               className="btn btn-sm"
-              title="Gerar PDF de petição"
+              title="Gerar petição de cumprimento (voluntário)"
             >
               <FileText size={14} />
               Gerar Petição
             </button>
+            {onGerarForcado && (
+              <button
+                onClick={() => onGerarForcado(exec.id)}
+                className="btn btn-sm"
+                title="Gerar rascunho de cumprimento de sentença (forçado)"
+              >
+                <FileText size={14} />
+                Cumprimento Forçado
+              </button>
+            )}
             <button
               onClick={() => onEdit(exec.id)}
               className="btn btn-sm btn-gold"

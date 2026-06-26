@@ -87,8 +87,10 @@ export const INDICES_CORRECAO = [
   { value: 'SELIC', label: 'SELIC' }
 ]
 
+// IMPORTANTE: os 'value' precisam ser idênticos aos rótulos do enum
+// `indice_juros` no Supabase (Selic deduzido IPCA | SELIC | 1% a.m. | Outro).
 export const INDICES_JUROS = [
-  { value: 'SELIC-IPCA', label: 'Selic − IPCA (taxa real)' },
+  { value: 'Selic deduzido IPCA', label: 'Selic − IPCA (taxa real)' },
   { value: 'SELIC', label: 'SELIC integral' },
-  { value: '1PCT', label: '1% a.m. (art. 406 CC)' }
+  { value: '1% a.m.', label: '1% a.m. (art. 406 CC)' }
 ]

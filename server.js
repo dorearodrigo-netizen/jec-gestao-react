@@ -54,7 +54,10 @@ async function ocrPdf(buffer, maxPaginas = 3) {
 app.use(cors())
 app.use(express.json())
 
-// Rota de health check
+// Rota raiz / health check (usada pela hospedagem para verificar o serviço).
+app.get('/', (req, res) => {
+  res.json({ servico: 'JEC Gestão — backend', status: 'ok' })
+})
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' })
 })

@@ -146,13 +146,14 @@ export async function gerarPeticaoCumprimentoBuffer(execucao = {}, calculo = nul
 
   const corpo = []
 
-  // Qualificações (extraídas da inicial); fallback para placeholder.
+  // Qualificações: se preenchidas (extraídas da inicial), usa a completa;
+  // senão, apenas nomeia a parte e remete à qualificação já constante dos autos.
   const qualAutor = qualificacao_exequente
     ? `, ${qualificacao_exequente},`
-    : ', já qualificado(a) nos autos em epígrafe [inserir qualificação completa],'
+    : ', já devidamente qualificado(a) nos autos do processo em epígrafe,'
   const qualReu = qualificacao_executado
     ? `, ${qualificacao_executado},`
-    : ', pessoa [física/jurídica] já qualificada nos autos [inserir CNPJ/CPF e endereço],'
+    : ', já devidamente qualificado(a) nos autos do processo em epígrafe,'
 
   // Endereçamento
   corpo.push(new Paragraph({

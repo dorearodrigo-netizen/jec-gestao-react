@@ -97,19 +97,19 @@ export function PDFUpload({ pdfs, onChange, onDadosExtraidos, onQualificacao }) 
           }
         }
 
-        // Se for a inicial, extrai (OCR) a qualificação das partes.
+        // Se for a inicial, extrai (OCR, mais páginas) a qualificação das
+        // partes e o valor sugerido do dano material (fatos/pedidos).
         if (tipo === 'inicial' && onQualificacao) {
           try {
             setExtraindo(true)
-            const dados = await extractFromPDF(file)
-            if (dados.qualificacao_exequente || dados.qualificacao_executado) {
-              onQualificacao({
-                qualificacao_exequente: dados.qualificacao_exequente || '',
-                qualificacao_executado: dados.qualificacao_executado || ''
-              })
-            }
+            const dados = await extractFromPDF(file, 6)
+            const merge = {}
+            if (dados.qualificacao_exequente) merge.qualificacao_exequente = dados.qualificacao_exequente
+            if (dados.qualificacao_executado) merge.qualificacao_executado = dados.qualificacao_executado
+            if (dados.dmat_valor) merge.dmat_valor_sugerido = dados.dmat_valor
+            if (Object.keys(merge).length) onQualificacao(merge)
           } catch (error) {
-            console.error('Erro ao extrair qualificação da inicial:', error)
+            console.error('Erro ao extrair dados da inicial:', error)
           } finally {
             setExtraindo(false)
           }

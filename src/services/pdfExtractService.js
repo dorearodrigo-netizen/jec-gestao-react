@@ -15,9 +15,13 @@ function camposPreenchidos(dados) {
   return campos.filter((c) => dados?.[c] !== '' && dados?.[c] != null).length
 }
 
-/** Envia um PDF ao servidor e retorna os dados estruturados extraídos. */
-export async function extractFromPDF(file) {
-  const response = await fetch(`${SERVER_URL}/extract-pdf`, {
+/**
+ * Envia um PDF ao servidor e retorna os dados estruturados extraídos.
+ * `paginas` controla quantas páginas o OCR transcreve (PDFs digitalizados).
+ */
+export async function extractFromPDF(file, paginas) {
+  const query = paginas ? `?paginas=${paginas}` : ''
+  const response = await fetch(`${SERVER_URL}/extract-pdf${query}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/pdf' },
     body: file

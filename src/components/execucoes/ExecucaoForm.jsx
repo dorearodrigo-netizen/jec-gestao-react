@@ -70,9 +70,17 @@ export function ExecucaoForm({ inicial = null, onSave, onCancel }) {
     setDadosExtraidos(dados)
   }
 
-  // Qualificação extraída da inicial (OCR) — preenche direto para revisão.
-  const handleQualificacao = (q) => {
-    setForm(prev => ({ ...prev, ...q }))
+  // Dados extraídos da inicial (OCR) — qualificação e valor sugerido do dano
+  // material. O valor só preenche se o campo estiver vazio (não sobrescreve).
+  const handleQualificacao = (dados) => {
+    setForm(prev => {
+      const { dmat_valor_sugerido, ...resto } = dados
+      const novo = { ...prev, ...resto }
+      if (dmat_valor_sugerido && !prev.dmat_valor) {
+        novo.dmat_valor = String(dmat_valor_sugerido)
+      }
+      return novo
+    })
   }
 
   const handleConfirmarDadosExtraidos = (dadosConfirmados) => {

@@ -143,6 +143,25 @@ function parseDanoMoral(texto) {
   return ''
 }
 
+/**
+ * Valor do dano material — busca um valor monetário PRÓXIMO a termos típicos de
+ * dano material (pagamentos indevidos, restituição em dobro, repetição do
+ * indébito, danos materiais, ressarcimento). Útil sobretudo na inicial, onde o
+ * valor consta nos fatos e nos pedidos. Retorna '' se nada confiável for achado.
+ */
+function parseDanoMaterialValor(texto) {
+  const num = (s) => parseFloat(s.replace(/\./g, '').replace(',', '.'))
+  const termos = '(?:pagamentos?\\s+indevidos?|valor(?:es)?\\s+pagos?\\s+a\\s+maior|' +
+    '(?:repeti[çc][ãa]o|restitui[çc][ãa]o)[\\s\\S]{0,30}?(?:ind[ée]bito|em\\s+dobro)|' +
+    'compensa[çc][ãa]o\\s+(?:do\\s+valor|dos\\s+valores)|danos?\\s+materiais?|ressarcimento)'
+
+  let m = texto.match(new RegExp(`${termos}[\\s\\S]{0,80}?R\\$\\s*([\\d.]+,\\d{2})`, 'i'))
+  if (m) return num(m[1])
+  m = texto.match(new RegExp(`R\\$\\s*([\\d.]+,\\d{2})[\\s\\S]{0,60}?${termos}`, 'i'))
+  if (m) return num(m[1])
+  return ''
+}
+
 function parseIndiceCorrecao(texto) {
   if (/IPCA-?E?/i.test(texto)) return 'IPCA'
   if (/INPC/i.test(texto)) return 'INPC'
@@ -183,22 +202,32 @@ function parseQualificacoes(texto) {
 }
 
 function detectarTipoDocumento(texto) {
-  // 1) Acórdão (2º grau).
-  if (/RECURSO\s+INOMINADO|TURMA\s+RECURSAL|AC[ÓO]RD[ÃA]O/i.test(texto)) return 'acordao'
+  // Sinais FORTES de petição inicial (peça da parte, endereçada ao juízo).
+  const ehInicial = /AO\s+(?:DOUTO\s+)?JU[ÍI]ZO/i.test(texto) &&
+    /propor\s+a\s+presente|vem\s+propor|ajuizar?\s+a\s+presente/i.test(texto)
 
-  // 2) Decisão (sentença): sinais que SÓ aparecem em decisão do juízo —
-  //    "JULGO (parcialmente) procedente/improcedente", "É o relatório", "Decido".
-  //    Usamos "JULGO" (1ª pessoa do juiz), não "julgar" (pedido da inicial).
-  if (/JULGO\s+(PARCIALMENTE\s+)?(IM)?PROCEDENTE|[ÉE]\s+o\s+relat[óo]rio|\bDecido\b|DISPOSITIVO/i.test(texto)) {
-    return 'sentenca'
-  }
+  // Sinais de DISPOSITIVO de decisão (juízo) — evitamos casar com ementa citada.
+  const ehDecisao =
+    /[ÉE]\s+o\s+relat[óo]rio\.?\s*Decido|Publique-se[.,;\s]*Intim|JULGO\s+(?:PARCIALMENTE\s+)?(?:IM)?PROCEDENTE/i.test(texto)
 
-  // 3) Petição inicial: peça da parte endereçada ao juízo (valores são PEDIDOS).
-  if (/perante\s+Vossa\s+Excel[êe]ncia|propor\s+a\s+presente|AO\s+JU[ÍI]ZO|EXORDIAL|PETI[ÇC][ÃA]O\s+INICIAL/i.test(texto)) {
-    return 'inicial'
-  }
+  // Acórdão: o órgão emissor (Turma Recursal) e a EMENTA aparecem no CABEÇALHO.
+  // Numa sentença de 1º grau, "Turma Recursal" só surge no meio (instrução de
+  // remessa em caso de recurso) — por isso olhamos apenas o início do documento.
+  const cabecalho = texto.slice(0, 700)
+  const ehAcordao = /TURMA\s+RECURSAL|RECURSO\s+INOMINADO|\bEMENTA\b/i.test(cabecalho)
 
-  if (/SENTEN[ÇC]A/i.test(texto)) return 'sentenca'
+  // 1) Inicial vence quando tem os sinais fortes e não é um dispositivo.
+  if (ehInicial && !ehDecisao) return 'inicial'
+
+  // 2) Acórdão (2º grau).
+  if (ehAcordao) return 'acordao'
+
+  // 3) Sentença (dispositivo ou cabeçalho "SENTENÇA").
+  if (ehDecisao || /\bSENTEN[ÇC]A\b/i.test(texto)) return 'sentenca'
+
+  // 4) Inicial (sinais mais fracos).
+  if (/perante\s+Vossa\s+Excel[êe]ncia|EXORDIAL|PETI[ÇC][ÃA]O\s+INICIAL/i.test(texto)) return 'inicial'
+
   return 'desconhecido'
 }
 
@@ -225,6 +254,9 @@ export function parsePeticaoData(texto) {
     dm_juros: parseIndiceJuros(texto),
     qualificacao_exequente: quali.qualificacao_exequente,
     qualificacao_executado: quali.qualificacao_executado,
+    // Valor do dano material só é sugerido a partir da INICIAL (nas decisões o
+    // termo "repetição do indébito" costuma vir perto do dano moral → falso+).
+    dmat_valor: tipo === 'inicial' ? parseDanoMaterialValor(texto) : '',
     tipo_documento: tipo
   }
 }

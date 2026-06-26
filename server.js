@@ -85,9 +85,12 @@ app.post('/extract-pdf', express.raw({ type: '*/*', limit: '50mb' }), async (req
     let viaOcr = false
 
     // Sem camada de texto (PDF digitalizado): cai para OCR.
+    // ?paginas=N controla quantas páginas transcrever (inicial usa mais, pois o
+    // valor do dano material costuma estar nos fatos/pedidos).
     if (textoLimpo.replace(/\s/g, '').length < 30) {
-      console.log('🔎 PDF sem texto — aplicando OCR...')
-      textoLimpo = await ocrPdf(req.body)
+      const nPaginas = Math.min(Math.max(parseInt(req.query.paginas) || 3, 1), 12)
+      console.log(`🔎 PDF sem texto — aplicando OCR (${nPaginas} págs)...`)
+      textoLimpo = await ocrPdf(req.body, nPaginas)
       viaOcr = true
     }
 
